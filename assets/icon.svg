@@ -1,0 +1,15 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="promptik-icon-accent" x1="54" y1="74" x2="156" y2="176" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#67E8F9"/>
+      <stop offset="1" stop-color="#2DD4BF"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="58" fill="#0B0F14"/>
+  <rect x="42" y="76" width="172" height="104" rx="52" fill="#101720" stroke="#243241" stroke-width="4"/>
+  <path d="M80 139V117" stroke="url(#promptik-icon-accent)" stroke-width="14" stroke-linecap="round"/>
+  <path d="M106 151V105" stroke="url(#promptik-icon-accent)" stroke-width="14" stroke-linecap="round"/>
+  <path d="M132 142V114" stroke="url(#promptik-icon-accent)" stroke-width="14" stroke-linecap="round"/>
+  <path d="M158 128H180" stroke="#F8FAFC" stroke-width="14" stroke-linecap="round"/>
+  <path d="M194 104V152" stroke="#F8FAFC" stroke-width="14" stroke-linecap="round"/>
+</svg>

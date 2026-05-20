@@ -1,0 +1,6 @@
+faster-whisper>=1.0.3
+numpy>=1.26.0
+soundfile>=0.12.1
+nvidia-cublas-cu12>=12.9.2.10; platform_system == "Windows"
+nvidia-cudnn-cu12>=9.22.0.52; platform_system == "Windows"
+nvidia-cuda-runtime-cu12>=12.9.79; platform_system == "Windows"

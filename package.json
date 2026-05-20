@@ -1,0 +1,111 @@
+{
+  "name": "promptik",
+  "version": "0.1.5",
+  "description": "Локальное desktop speech-to-text приложение для превращения голоса в промпты.",
+  "author": "Promptik contributors",
+  "license": "MIT",
+  "keywords": [
+    "electron",
+    "speech-to-text",
+    "whisper",
+    "faster-whisper",
+    "local-ai",
+    "prompt"
+  ],
+  "main": "dist/main/main.js",
+  "scripts": {
+    "dev": "concurrently -k -n VITE,TSC,ELECTRON -c cyan,magenta,green \"vite --host 127.0.0.1\" \"tsc -p tsconfig.main.json --watch --preserveWatchOutput\" \"wait-on tcp:127.0.0.1:5173 dist/main/main.js && cross-env ELECTRON_RENDERER_URL=http://127.0.0.1:5173 electron .\"",
+    "build": "npm run typecheck && vite build && tsc -p tsconfig.main.json",
+    "dist:win": "npm run build && electron-builder --win nsis --x64",
+    "dist:win:dir": "npm run build && electron-builder --win dir --x64",
+    "prepare:wheelhouse": "powershell -ExecutionPolicy Bypass -File scripts/prepare-wheelhouse.ps1",
+    "start": "electron .",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.main.json"
+  },
+  "build": {
+    "appId": "app.promptik.desktop",
+    "productName": "Promptik",
+    "copyright": "Copyright © 2026 Promptik contributors",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "extraFiles": [
+      {
+        "from": "assets",
+        "to": "assets",
+        "filter": [
+          "icon.ico",
+          "icon.svg",
+          "logo.svg"
+        ]
+      },
+      {
+        "from": "python",
+        "to": "python",
+        "filter": [
+          "transcriber.py",
+          "requirements.txt",
+          "wheelhouse/**/*"
+        ]
+      },
+      {
+        "from": "README.md",
+        "to": "README.md"
+      },
+      {
+        "from": "install-ml.bat",
+        "to": "install-ml.bat"
+      },
+      {
+        "from": "LICENSE",
+        "to": "LICENSE"
+      }
+    ],
+    "win": {
+      "icon": "assets/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "${productName}-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Promptik"
+    }
+  },
+  "dependencies": {
+    "lucide-react": "^0.468.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/react": "^18.3.17",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "concurrently": "^9.1.2",
+    "cross-env": "^7.0.3",
+    "electron": "^42.1.0",
+    "electron-builder": "^26.8.1",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.7",
+    "wait-on": "^8.0.2"
+  }
+}
