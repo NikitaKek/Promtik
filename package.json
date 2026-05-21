@@ -92,6 +92,9 @@
         "releaseType": "release"
       }
     ],
+    "releaseInfo": {
+      "releaseNotes": "## Important after install\n\nAfter installing Promptik, run `install-ml.bat` once from the application install folder. It creates `python\\.venv` and installs the local ML dependencies required by faster-whisper.\n\n## Release files\n\n- Windows installer `Promptik-Setup-<version>.exe`\n- `.blockmap` and `latest.yml` for auto-updates\n- local Python ML backend and wheelhouse dependencies\n\nAudio is processed locally and is not sent to external servers."
+    },
     "nsis": {
       "oneClick": false,
       "perMachine": false,
