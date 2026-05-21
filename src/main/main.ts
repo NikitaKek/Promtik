@@ -12,6 +12,7 @@ import {
   markAppQuitting,
   shouldHideToTray
 } from "./tray";
+import { registerUpdateHandlers } from "./updates";
 
 let mainWindow: BrowserWindow | null = null;
 const pythonBridge = new PythonBridge();
@@ -46,6 +47,7 @@ async function createWindow(): Promise<void> {
   });
 
   registerIpcHandlers(mainWindow, pythonBridge);
+  registerUpdateHandlers(mainWindow);
   createAppTray(mainWindow);
 
   mainWindow.on("close", (event) => {

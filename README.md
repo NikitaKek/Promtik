@@ -170,7 +170,7 @@ Promptik можно собрать в установщик для GitHub Release
 npm run dist:win
 ```
 
-Готовый файл появится в `release/`, например `Promptik-Setup-0.1.5.exe`.
+Готовый файл появится в `release/`, например `Promptik-Setup-0.1.6.exe`.
 
 Ярлык в меню Пуск и установленный `.exe` используют иконку `assets/icon.ico`.
 
@@ -204,6 +204,25 @@ npm run dist:win
 ```
 
 `prepare:wheelhouse` скачивает Windows wheels для Python 3.11, 3.12, 3.13 и 3.14. Поэтому `install-ml.bat` сначала ищет установленный Python через `py -3.14`, `py -3.13`, `py -3.12`, `py -3.11`, а затем уже пробует обычный `python`.
+
+## CI/CD и автообновления
+
+В репозитории есть два GitHub Actions workflow:
+
+- `.github/workflows/ci.yml` - проверяет `npm ci`, TypeScript, Vite build и синтаксис Python на push/PR в `main`.
+- `.github/workflows/release.yml` - по tag `v*` собирает Windows NSIS installer, готовит `python/wheelhouse`, публикует GitHub Release и загружает `Promptik-Setup-<version>.exe`, `.blockmap` и `latest.yml`.
+
+Для выпуска новой версии:
+
+```powershell
+npm version patch
+git push
+git push origin v<version>
+```
+
+Версия в `package.json` должна совпадать с tag, например `0.1.6` и `v0.1.6`. GitHub Actions использует встроенный `GITHUB_TOKEN`; в настройках репозитория Actions должны иметь `Read and write permissions` для contents. Code signing пока не настроен, поэтому Windows может показывать SmartScreen до появления репутации подписанного издателя.
+
+Автообновление работает через `electron-updater` и GitHub Releases. Приложение проверяет обновления при запуске установленной версии и показывает кнопку проверки рядом со статусом записи. Если доступен новый release, появляется кнопка скачивания; после загрузки она перезапускает приложение и устанавливает обновление. В dev-режиме проверка обновлений не выполняется.
 
 Whisper-модель скачивается при первом использовании выбранного пресета. Для полноценного self-contained release в будущем можно отдельно собрать Python backend через PyInstaller или подготовить отдельный архив с portable Python и зависимостями, но такой релиз будет значительно тяжелее.
 

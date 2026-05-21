@@ -57,6 +57,7 @@ project-root/
       miniOverlay.ts
       pythonBridge.ts
       hotkeys.ts
+      updates.ts
       fileSystem.ts
       settings.ts
     renderer/
@@ -128,6 +129,10 @@ project-root/
 - `onHotkeyPressed(callback)`
 - `getOverlayState()`
 - `updateOverlay(state)`
+- `getUpdateState()`
+- `checkForUpdates(manual)`
+- `installUpdate()`
+- `onUpdateState(callback)`
 - `onOverlayState(callback)`
 
 `startRecording` и `stopRecording` являются renderer workflow hooks: они фиксируют IPC-событие намерения, а реальная запись выполняется MediaRecorder в React.

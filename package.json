@@ -1,6 +1,6 @@
 {
   "name": "promptik",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Локальное desktop speech-to-text приложение для превращения голоса в промпты.",
   "author": "Promptik contributors",
   "license": "MIT",
@@ -12,6 +12,11 @@
     "local-ai",
     "prompt"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/NikitaKek/Promtik.git"
+  },
+  "homepage": "https://github.com/NikitaKek/Promtik",
   "main": "dist/main/main.js",
   "scripts": {
     "dev": "concurrently -k -n VITE,TSC,ELECTRON -c cyan,magenta,green \"vite --host 127.0.0.1\" \"tsc -p tsconfig.main.json --watch --preserveWatchOutput\" \"wait-on tcp:127.0.0.1:5173 dist/main/main.js && cross-env ELECTRON_RENDERER_URL=http://127.0.0.1:5173 electron .\"",
@@ -19,6 +24,7 @@
     "dist:win": "npm run build && electron-builder --win nsis --x64",
     "dist:win:dir": "npm run build && electron-builder --win dir --x64",
     "prepare:wheelhouse": "powershell -ExecutionPolicy Bypass -File scripts/prepare-wheelhouse.ps1",
+    "release:win": "npm run prepare:wheelhouse && npm run build && electron-builder --win nsis --x64 --publish always",
     "start": "electron .",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.main.json"
   },
@@ -78,6 +84,14 @@
       ],
       "artifactName": "${productName}-Setup-${version}.${ext}"
     },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "NikitaKek",
+        "repo": "Promtik",
+        "releaseType": "release"
+      }
+    ],
     "nsis": {
       "oneClick": false,
       "perMachine": false,
@@ -88,6 +102,7 @@
     }
   },
   "dependencies": {
+    "electron-updater": "^6.8.3",
     "lucide-react": "^0.468.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"

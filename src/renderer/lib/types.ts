@@ -24,6 +24,14 @@ export type AppStatus =
   | "transcribing"
   | "copied"
   | "error";
+export type UpdateStatus =
+  | "idle"
+  | "checking"
+  | "available"
+  | "not-available"
+  | "downloading"
+  | "downloaded"
+  | "error";
 
 export interface OverlayState {
   status: AppStatus;
@@ -92,6 +100,15 @@ export interface WarmupResponse {
   error?: string;
 }
 
+export interface UpdateState {
+  status: UpdateStatus;
+  currentVersion: string;
+  availableVersion?: string;
+  message?: string;
+  progress?: number;
+  checkedAt?: string;
+}
+
 export type ModelCacheStatus = Partial<Record<ModelSize, ModelDownloadState>>;
 
 export interface PromptikApi {
@@ -104,6 +121,9 @@ export interface PromptikApi {
   ) => Promise<WarmupResponse>;
   getModelCacheStatus: () => Promise<ModelCacheResponse>;
   getGpuStatus: () => Promise<GpuStatusResponse>;
+  getUpdateState: () => Promise<UpdateState>;
+  checkForUpdates: (manual?: boolean) => Promise<UpdateState>;
+  installUpdate: () => Promise<UpdateState>;
   startRecording: () => Promise<{ ok: boolean }>;
   stopRecording: () => Promise<{ ok: boolean }>;
   saveRecording: (
@@ -132,6 +152,7 @@ export interface PromptikApi {
   onHotkeyPressed: (callback: () => void) => () => void;
   onAppWarning: (callback: (message: string) => void) => () => void;
   onOverlayState: (callback: (state: OverlayState) => void) => () => void;
+  onUpdateState: (callback: (state: UpdateState) => void) => () => void;
 }
 
 declare global {

@@ -18,7 +18,8 @@ import type {
   ModelCacheStatus,
   ModelSize,
   OverlayState,
-  TranscriptSegment
+  TranscriptSegment,
+  UpdateState
 } from "./lib/types";
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -41,6 +42,12 @@ const DEFAULT_MODEL_CACHE_STATUS: ModelCacheStatus = {
   "large-v3": "checking"
 };
 
+const DEFAULT_UPDATE_STATE: UpdateState = {
+  status: "idle",
+  currentVersion: "",
+  message: "Проверка обновлений еще не запускалась."
+};
+
 export default function App(): JSX.Element {
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -61,6 +68,9 @@ export default function App(): JSX.Element {
   const [modelCacheDir, setModelCacheDir] = useState<string | null>(null);
   const [isCheckingModels, setIsCheckingModels] = useState(false);
   const [gpuStatus, setGpuStatus] = useState<GpuStatusResponse | null>(null);
+  const [updateState, setUpdateState] = useState<UpdateState>(
+    DEFAULT_UPDATE_STATE
+  );
 
   const settingsRef = useRef(settings);
   const historyRef = useRef(history);
@@ -554,6 +564,32 @@ export default function App(): JSX.Element {
     }
   }, [markCopied, showError, transcript]);
 
+  const handleCheckUpdates = useCallback(async () => {
+    try {
+      const nextState = await window.promptik.checkForUpdates(true);
+      setUpdateState(nextState);
+    } catch (caughtError) {
+      setUpdateState((current) => ({
+        ...current,
+        status: "error",
+        message: getErrorMessage(caughtError, "Не удалось проверить обновления.")
+      }));
+    }
+  }, []);
+
+  const handleInstallUpdate = useCallback(async () => {
+    try {
+      const nextState = await window.promptik.installUpdate();
+      setUpdateState(nextState);
+    } catch (caughtError) {
+      setUpdateState((current) => ({
+        ...current,
+        status: "error",
+        message: getErrorMessage(caughtError, "Не удалось установить обновление.")
+      }));
+    }
+  }, []);
+
   useEffect(() => {
     settingsRef.current = settings;
   }, [settings]);
@@ -610,11 +646,22 @@ export default function App(): JSX.Element {
     const unsubscribeWarning = window.promptik.onAppWarning((message) => {
       setNotice(message);
     });
+    const unsubscribeUpdateState = window.promptik.onUpdateState(setUpdateState);
+
+    void window.promptik
+      .getUpdateState()
+      .then(setUpdateState)
+      .catch(() => undefined);
+    void window.promptik
+      .checkForUpdates(false)
+      .then(setUpdateState)
+      .catch(() => undefined);
 
     return () => {
       canceled = true;
       unsubscribeHotkey();
       unsubscribeWarning();
+      unsubscribeUpdateState();
       if (toastTimerRef.current !== null) {
         window.clearTimeout(toastTimerRef.current);
       }
@@ -639,6 +686,9 @@ export default function App(): JSX.Element {
             message={error ?? notice ?? undefined}
             messageTone={error ? "error" : notice ? "notice" : undefined}
             hotkeyLabel={hotkeyLabel(settings.hotkey)}
+            updateState={updateState}
+            onCheckUpdates={handleCheckUpdates}
+            onInstallUpdate={handleInstallUpdate}
           />
           <TabsBar
             activeTab={activeTab}

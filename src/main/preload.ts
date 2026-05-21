@@ -7,6 +7,7 @@ import type {
   WarmupResponse
 } from "./pythonBridge";
 import type { MiniOverlayState } from "./miniOverlay";
+import type { UpdateState } from "./updates";
 
 const api = {
   minimizeWindow: (): Promise<{ ok: boolean }> =>
@@ -28,6 +29,12 @@ const api = {
     ipcRenderer.invoke("models:cache-status"),
   getGpuStatus: (): Promise<GpuStatusResponse> =>
     ipcRenderer.invoke("gpu:status"),
+  getUpdateState: (): Promise<UpdateState> =>
+    ipcRenderer.invoke("updates:get-state"),
+  checkForUpdates: (manual = true): Promise<UpdateState> =>
+    ipcRenderer.invoke("updates:check", manual),
+  installUpdate: (): Promise<UpdateState> =>
+    ipcRenderer.invoke("updates:install"),
   startRecording: (): Promise<{ ok: boolean }> => ipcRenderer.invoke("recording:start"),
   stopRecording: (): Promise<{ ok: boolean }> => ipcRenderer.invoke("recording:stop"),
   saveRecording: (
@@ -86,6 +93,14 @@ const api = {
     ): void => callback(state);
     ipcRenderer.on("overlay-state", listener);
     return () => ipcRenderer.removeListener("overlay-state", listener);
+  },
+  onUpdateState: (callback: (state: UpdateState) => void): (() => void) => {
+    const listener = (
+      _event: Electron.IpcRendererEvent,
+      state: UpdateState
+    ): void => callback(state);
+    ipcRenderer.on("updates:state", listener);
+    return () => ipcRenderer.removeListener("updates:state", listener);
   }
 };
 
