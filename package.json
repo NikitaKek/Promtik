@@ -1,6 +1,6 @@
 {
   "name": "promptik",
-  "version": "0.1.7",
+  "version": "0.2.0",
   "description": "Локальное desktop speech-to-text приложение для превращения голоса в промпты.",
   "author": "Promptik contributors",
   "license": "MIT",
@@ -93,7 +93,7 @@
       }
     ],
     "releaseInfo": {
-      "releaseNotes": "## Important after install\n\nAfter installing Promptik, run `install-ml.bat` once from the application install folder. It creates `python\\.venv` and installs the local ML dependencies required by faster-whisper.\n\n## Release files\n\n- Windows installer `Promptik-Setup-<version>.exe`\n- `.blockmap` and `latest.yml` for auto-updates\n- local Python ML backend and wheelhouse dependencies\n\nAudio is processed locally and is not sent to external servers."
+      "releaseNotes": "## Important after install\n\nAfter installing Promptik, run `install-ml.bat` once from the application install folder. It creates `python\\.venv` and installs the local ML dependencies required by faster-whisper. App updates preserve this folder, so you do not need to run `install-ml.bat` again after every update.\n\n## Updates\n\nIn-app updates run over the existing installation. The installer switches to silent update mode when it is launched by Promptik and restores the local ML environment after the app files are replaced.\n\n## Release files\n\n- Windows installer `Promptik-Setup-<version>.exe`\n- `.blockmap` and `latest.yml` for auto-updates\n- local Python ML backend and wheelhouse dependencies\n\nAudio is processed locally and is not sent to external servers."
     },
     "nsis": {
       "oneClick": false,
@@ -101,6 +101,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
+      "include": "build/installer.nsh",
       "shortcutName": "Promptik"
     }
   },

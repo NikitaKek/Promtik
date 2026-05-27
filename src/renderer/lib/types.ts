@@ -109,6 +109,7 @@ export interface UpdateState {
   message?: string;
   progress?: number;
   checkedAt?: string;
+  manual?: boolean;
 }
 
 export type ModelCacheStatus = Partial<Record<ModelSize, ModelDownloadState>>;

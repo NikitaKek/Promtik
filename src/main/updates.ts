@@ -17,6 +17,7 @@ export interface UpdateState {
   message?: string;
   progress?: number;
   checkedAt?: string;
+  manual?: boolean;
 }
 
 let updateWindow: BrowserWindow | null = null;
@@ -47,7 +48,8 @@ async function checkForUpdates(manual: boolean): Promise<UpdateState> {
     setState({
       status: "not-available",
       message: "Проверка обновлений работает только в установленной версии.",
-      checkedAt: new Date().toISOString()
+      checkedAt: new Date().toISOString(),
+      manual
     });
     return state;
   }
@@ -58,7 +60,8 @@ async function checkForUpdates(manual: boolean): Promise<UpdateState> {
 
   setState({
     status: "checking",
-    message: manual ? "Проверяем обновления..." : "Автопроверка обновлений..."
+    message: manual ? "Проверяем обновления..." : "Автопроверка обновлений...",
+    manual
   });
 
   try {
@@ -67,7 +70,8 @@ async function checkForUpdates(manual: boolean): Promise<UpdateState> {
     setState({
       status: "error",
       message: getUpdateErrorMessage(error),
-      checkedAt: new Date().toISOString()
+      checkedAt: new Date().toISOString(),
+      manual
     });
   }
 
@@ -79,13 +83,14 @@ async function downloadOrInstallUpdate(): Promise<UpdateState> {
     setState({
       status: "not-available",
       message: "Обновление доступно только в установленной версии.",
-      checkedAt: new Date().toISOString()
+      checkedAt: new Date().toISOString(),
+      manual: true
     });
     return state;
   }
 
   if (state.status === "downloaded") {
-    autoUpdater.quitAndInstall(false, true);
+    autoUpdater.quitAndInstall(true, true);
     return state;
   }
 
@@ -96,7 +101,8 @@ async function downloadOrInstallUpdate(): Promise<UpdateState> {
   setState({
     status: "downloading",
     message: "Скачиваем обновление...",
-    progress: 0
+    progress: 0,
+    manual: true
   });
 
   try {
@@ -105,7 +111,8 @@ async function downloadOrInstallUpdate(): Promise<UpdateState> {
     setState({
       status: "error",
       message: getUpdateErrorMessage(error),
-      checkedAt: new Date().toISOString()
+      checkedAt: new Date().toISOString(),
+      manual: true
     });
   }
 
@@ -147,7 +154,8 @@ function configureAutoUpdater(): void {
       availableVersion: undefined,
       message: "Установлена последняя версия.",
       progress: undefined,
-      checkedAt: new Date().toISOString()
+      checkedAt: new Date().toISOString(),
+      manual: state.manual
     });
   });
 
@@ -155,7 +163,8 @@ function configureAutoUpdater(): void {
     setState({
       status: "downloading",
       message: `Скачиваем обновление: ${Math.round(progress.percent)}%.`,
-      progress: progress.percent
+      progress: progress.percent,
+      manual: true
     });
   });
 
@@ -165,7 +174,8 @@ function configureAutoUpdater(): void {
       availableVersion: info.version,
       message: `Версия ${info.version} готова к установке.`,
       progress: 100,
-      checkedAt: new Date().toISOString()
+      checkedAt: new Date().toISOString(),
+      manual: true
     });
   });
 
@@ -173,7 +183,8 @@ function configureAutoUpdater(): void {
     setState({
       status: "error",
       message: getUpdateErrorMessage(error),
-      checkedAt: new Date().toISOString()
+      checkedAt: new Date().toISOString(),
+      manual: state.manual
     });
   });
 }

@@ -105,7 +105,11 @@ export function TopBar({
 }
 
 function getUpdateLine(updateState: UpdateState): string | undefined {
-  if (updateState.status === "idle" || updateState.status === "not-available") {
+  if (updateState.status === "idle") {
+    return undefined;
+  }
+
+  if (updateState.status === "not-available" && !updateState.manual) {
     return undefined;
   }
 

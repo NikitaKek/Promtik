@@ -15,7 +15,7 @@ Audio is processed on your machine. Promptik does not send microphone recordings
 - Quality presets for `large-v3-turbo` and `large-v3`.
 - CUDA GPU mode with CPU fallback.
 - Windows tray mode and compact recording overlay.
-- GitHub Releases auto-update support.
+- GitHub Releases auto-update support with in-place updates.
 
 ## Install
 
@@ -27,7 +27,7 @@ Audio is processed on your machine. Promptik does not send microphone recordings
 install-ml.bat
 ```
 
-`install-ml.bat` creates `python\.venv` and installs the local ML dependencies. Release builds include a `python\wheelhouse` folder, so the ML setup can install dependencies locally instead of downloading them from PyPI.
+`install-ml.bat` creates `python\.venv` inside the Promptik installation folder and installs the local ML dependencies there. App updates preserve this folder, so you do not need to run `install-ml.bat` again after every update. Release builds include a `python\wheelhouse` folder, so the ML setup can install dependencies locally instead of downloading them from PyPI.
 
 After that, start Promptik and use `Ctrl + Alt + Space` to record.
 
@@ -100,10 +100,11 @@ git push origin v<version>
 ```
 
 The `Release` GitHub Actions workflow builds the Windows installer, uploads the `.exe`, `.blockmap`, and `latest.yml`, and publishes them to GitHub Releases. `latest.yml` and `.blockmap` are required by `electron-updater`.
+When Promptik is updated from inside the app, the installer runs in update mode over the existing installation.
 
 ## Notes For Users
 
-- Run `install-ml.bat` once after installing Promptik.
+- Run `install-ml.bat` once after installing Promptik. Future app updates reuse the same ML environment.
 - The first transcription can take longer while the Whisper model is loaded or downloaded.
 - For best accuracy, use the `large-v3` model and Russian language mode when speaking Russian.
 - If Windows SmartScreen appears, it is expected for unsigned early open-source builds.
