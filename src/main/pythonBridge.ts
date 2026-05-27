@@ -53,6 +53,7 @@ type PythonCommand =
       vad_silence_ms: number;
       beam_size: number;
       hotwords: string;
+      prompt_mode?: "default" | "none" | "live";
     }
   | {
       action: "model_status";
@@ -81,7 +82,8 @@ export class PythonBridge {
     deviceMode: DeviceMode,
     vadSilenceMs: number,
     beamSize: number,
-    termHints: string
+    termHints: string,
+    promptMode: "default" | "none" | "live" = "default"
   ): Promise<TranscriptionResponse> {
     return this.sendCommand<TranscriptionResponse>({
       action: "transcribe",
@@ -91,7 +93,8 @@ export class PythonBridge {
       device: deviceMode,
       vad_silence_ms: vadSilenceMs,
       beam_size: beamSize,
-      hotwords: termHints
+      hotwords: termHints,
+      prompt_mode: promptMode
     });
   }
 

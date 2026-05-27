@@ -1,6 +1,6 @@
 {
   "name": "promptik",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "Локальное desktop speech-to-text приложение для превращения голоса в промпты.",
   "author": "Promptik contributors",
   "license": "MIT",

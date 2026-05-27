@@ -1,14 +1,25 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CheckCircle2, Square } from "lucide-react";
+import { AppToast } from "./components/AppToast";
 import { HistoryPanel } from "./components/HistoryPanel";
-import { RecordButton } from "./components/RecordButton";
+import { InputPanel } from "./components/InputPanel";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { TabsBar, type MainTab } from "./components/TabsBar";
 import { TopBar } from "./components/TopBar";
-import { TranscriptEditor } from "./components/TranscriptEditor";
 import { WindowTitleBar } from "./components/WindowTitleBar";
+import { useAudioLevelMonitor } from "./hooks/useAudioLevelMonitor";
+import { useLiveTranscription } from "./hooks/useLiveTranscription";
+import {
+  DEFAULT_MODEL_CACHE_STATUS,
+  DEFAULT_SETTINGS,
+  DEFAULT_UPDATE_STATE,
+  MODELS,
+  modelCacheStatusFor
+} from "./lib/appDefaults";
 import { copyCleanText, copyWithSettings } from "./lib/clipboard";
+import { createId, getErrorMessage } from "./lib/errors";
 import { hotkeyLabel } from "./lib/formatting";
+import { chooseAudioMimeType, extensionForMimeType } from "./lib/media";
+import { createRecordingOverlayState, notifyOverlay } from "./lib/overlay";
 import type {
   AppSettings,
   AppStatus,
@@ -16,37 +27,9 @@ import type {
   HistoryItem,
   HistorySource,
   ModelCacheStatus,
-  ModelSize,
-  OverlayState,
   TranscriptSegment,
   UpdateState
 } from "./lib/types";
-
-const DEFAULT_SETTINGS: AppSettings = {
-  qualityPreset: "maximum",
-  modelSize: "large-v3",
-  language: "ru",
-  deviceMode: "auto",
-  autoCopy: true,
-  aiFormat: false,
-  vadSilenceMs: 1100,
-  beamSize: 12,
-  termHints: "ChatGPT, Claude, Codex, Cursor, OpenAI, Python, TypeScript, React, Electron, Whisper, faster-whisper, CUDA",
-  hotkey: "CommandOrControl+Alt+Space"
-};
-
-const MODELS: ModelSize[] = ["large-v3-turbo", "large-v3"];
-
-const DEFAULT_MODEL_CACHE_STATUS: ModelCacheStatus = {
-  "large-v3-turbo": "checking",
-  "large-v3": "checking"
-};
-
-const DEFAULT_UPDATE_STATE: UpdateState = {
-  status: "idle",
-  currentVersion: "",
-  message: "Проверка обновлений еще не запускалась."
-};
 
 export default function App(): JSX.Element {
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
@@ -81,12 +64,20 @@ export default function App(): JSX.Element {
   const chunksRef = useRef<Blob[]>([]);
   const cancelRequestedRef = useRef(false);
   const toggleRecordingRef = useRef<() => void>(() => undefined);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const audioSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
-  const audioLevelTimerRef = useRef<number | null>(null);
-  const audioLevelRef = useRef(0);
-  const audioLevelLastSentRef = useRef(0);
   const toastTimerRef = useRef<number | null>(null);
+  const getCurrentSettings = useCallback(() => settingsRef.current, []);
+  const appendLiveDraft = useCallback((draftText: string) => {
+    const cleanDraft = draftText.replace(/\s+/g, " ").trim();
+    if (!cleanDraft) {
+      return;
+    }
+
+    setTranscript((current) => mergeLiveTranscript(current, cleanDraft));
+  }, []);
+  const { audioLevel, startAudioLevelMonitor, stopAudioLevelMonitor } =
+    useAudioLevelMonitor(getCurrentSettings);
+  const { startLiveTranscription, stopLiveTranscription } =
+    useLiveTranscription(getCurrentSettings, appendLiveDraft);
 
   const setBusyState = useCallback((value: boolean) => {
     busyRef.current = value;
@@ -126,93 +117,13 @@ export default function App(): JSX.Element {
     }, 4600);
   }, [showToast]);
 
-  const stopAudioLevelMonitor = useCallback(() => {
-    if (audioLevelTimerRef.current !== null) {
-      window.clearInterval(audioLevelTimerRef.current);
-      audioLevelTimerRef.current = null;
-    }
-
-    audioSourceRef.current?.disconnect();
-    audioSourceRef.current = null;
-
-    if (audioContextRef.current) {
-      void audioContextRef.current.close().catch(() => undefined);
-      audioContextRef.current = null;
-    }
-
-    audioLevelRef.current = 0;
-    audioLevelLastSentRef.current = 0;
-  }, []);
-
-  const startAudioLevelMonitor = useCallback(
-    (stream: MediaStream) => {
-      stopAudioLevelMonitor();
-
-      const AudioContextConstructor =
-        window.AudioContext ??
-        (window as Window & { webkitAudioContext?: typeof AudioContext })
-          .webkitAudioContext;
-
-      if (!AudioContextConstructor) {
-        notifyOverlay(createRecordingOverlayState(settingsRef.current, 0));
-        return;
-      }
-
-      try {
-        const audioContext = new AudioContextConstructor();
-        const source = audioContext.createMediaStreamSource(stream);
-        const analyser = audioContext.createAnalyser();
-
-        analyser.fftSize = 1024;
-        analyser.smoothingTimeConstant = 0.65;
-        const data = new Uint8Array(analyser.fftSize);
-        source.connect(analyser);
-
-        audioContextRef.current = audioContext;
-        audioSourceRef.current = source;
-        void audioContext.resume().catch(() => undefined);
-
-        const tick = (): void => {
-          analyser.getByteTimeDomainData(data);
-
-          let sum = 0;
-          for (const sample of data) {
-            const centered = (sample - 128) / 128;
-            sum += centered * centered;
-          }
-
-          const rms = Math.sqrt(sum / data.length);
-          const normalized = Math.max(0, Math.min(1, (rms - 0.015) * 8.5));
-          const smoothed =
-            normalized > audioLevelRef.current
-              ? normalized
-              : audioLevelRef.current * 0.72 + normalized * 0.28;
-          const level = smoothed < 0.035 ? 0 : smoothed;
-          audioLevelRef.current = level;
-
-          const now = performance.now();
-          if (now - audioLevelLastSentRef.current > 90) {
-            audioLevelLastSentRef.current = now;
-            notifyOverlay(createRecordingOverlayState(settingsRef.current, level));
-          }
-
-        };
-
-        tick();
-        audioLevelTimerRef.current = window.setInterval(tick, 80);
-      } catch {
-        notifyOverlay(createRecordingOverlayState(settingsRef.current, 0));
-      }
-    },
-    [stopAudioLevelMonitor]
-  );
-
   const cleanupMedia = useCallback(() => {
+    stopLiveTranscription();
     stopAudioLevelMonitor();
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
     mediaRecorderRef.current = null;
-  }, [stopAudioLevelMonitor]);
+  }, [stopAudioLevelMonitor, stopLiveTranscription]);
 
   const persistHistory = useCallback(async (nextHistory: HistoryItem[]) => {
     const trimmed = nextHistory.slice(0, 50);
@@ -253,10 +164,7 @@ export default function App(): JSX.Element {
 
   const refreshModelCacheStatus = useCallback(async () => {
     setIsCheckingModels(true);
-    setModelCacheStatus({
-      "large-v3-turbo": "checking",
-      "large-v3": "checking"
-    });
+    setModelCacheStatus(modelCacheStatusFor("checking"));
 
     try {
       const response = await window.promptik.getModelCacheStatus();
@@ -272,10 +180,7 @@ export default function App(): JSX.Element {
         }, { ...DEFAULT_MODEL_CACHE_STATUS })
       );
     } catch {
-      setModelCacheStatus({
-        "large-v3-turbo": "unknown",
-        "large-v3": "unknown"
-      });
+      setModelCacheStatus(modelCacheStatusFor("unknown"));
     } finally {
       setIsCheckingModels(false);
     }
@@ -431,6 +336,9 @@ export default function App(): JSX.Element {
       setError(null);
       setNotice(null);
       setStatus("recording");
+      setTranscript("");
+      setSegments([]);
+      setActiveHistoryId(null);
 
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
@@ -469,6 +377,7 @@ export default function App(): JSX.Element {
       recorder.start(250);
       setRecordingState(true);
       startAudioLevelMonitor(stream);
+      startLiveTranscription(stream);
       void window.promptik
         .startRecording()
         .then(() => {
@@ -489,6 +398,8 @@ export default function App(): JSX.Element {
     cleanupMedia,
     handleRecordingStop,
     setRecordingState,
+    startAudioLevelMonitor,
+    startLiveTranscription,
     showError
   ]);
 
@@ -697,39 +608,17 @@ export default function App(): JSX.Element {
           />
 
           {activeTab === "input" ? (
-            <section className="rounded-lg border border-white/10 bg-white/[0.055] p-5 shadow-glass backdrop-blur-xl">
-              <div className="grid min-h-[520px] items-stretch gap-6 lg:grid-cols-[220px_minmax(0,1fr)]">
-                <div className="flex items-center justify-center">
-                  <div className="flex flex-col items-center gap-4">
-                    <RecordButton
-                      isRecording={isRecording}
-                      isBusy={isBusy}
-                      onToggle={toggleRecording}
-                    />
-
-                    {isBusy && !isRecording ? (
-                      <button
-                        type="button"
-                        onClick={handleCancelTranscription}
-                        className="grid h-10 w-10 place-items-center rounded-lg border border-rose-200/30 bg-rose-400/[0.12] text-rose-50 transition hover:bg-rose-400/20"
-                        title="Остановить ML-задачу"
-                        aria-label="Остановить ML-задачу"
-                      >
-                        <Square className="h-4 w-4 fill-rose-100" />
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-
-                <TranscriptEditor
-                  text={transcript}
-                  disabled={isBusy || isRecording}
-                  selectionToken={selectionToken}
-                  onChange={setTranscript}
-                  onCopy={handleCopy}
-                />
-              </div>
-            </section>
+            <InputPanel
+              text={transcript}
+              audioLevel={audioLevel}
+              isRecording={isRecording}
+              isBusy={isBusy}
+              selectionToken={selectionToken}
+              onToggleRecording={toggleRecording}
+              onCancelTranscription={handleCancelTranscription}
+              onTextChange={setTranscript}
+              onCopy={handleCopy}
+            />
           ) : activeTab === "history" ? (
             <HistoryPanel
               history={history}
@@ -752,80 +641,101 @@ export default function App(): JSX.Element {
           )}
         </main>
       </div>
-      {toastMessage ? (
-        <div className="pointer-events-none fixed bottom-5 right-5 z-50 max-w-[360px] rounded-lg border border-emerald-200/25 bg-[#0b0f14]/90 px-4 py-3 text-emerald-50 shadow-[0_18px_55px_rgba(0,0,0,0.45)] backdrop-blur-xl">
-          <div className="flex items-start gap-3">
-            <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-emerald-200/20 bg-emerald-300/10">
-              <CheckCircle2 className="h-4 w-4 text-emerald-200" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-white">Готово</p>
-              <p className="mt-0.5 text-sm leading-5 text-slate-300">
-                {toastMessage}
-              </p>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      {toastMessage ? <AppToast message={toastMessage} /> : null}
     </div>
   );
 }
 
-function chooseAudioMimeType(): string {
-  const candidates = [
-    "audio/webm;codecs=opus",
-    "audio/webm",
-    "audio/ogg;codecs=opus",
-    "audio/mp4"
-  ];
+function mergeLiveTranscript(currentText: string, nextText: string): string {
+  const current = currentText.trim();
+  const next = nextText.trim();
 
-  return candidates.find((type) => MediaRecorder.isTypeSupported(type)) ?? "";
-}
-
-function extensionForMimeType(mimeType: string): string {
-  if (mimeType.includes("ogg")) {
-    return "ogg";
+  if (!current) {
+    return next;
   }
 
-  if (mimeType.includes("mp4")) {
-    return "mp4";
+  if (!next) {
+    return current;
   }
 
-  return "webm";
-}
+  const currentComparable = normalizeLiveText(current);
+  const nextComparable = normalizeLiveText(next);
 
-function createId(): string {
-  if ("randomUUID" in crypto) {
-    return crypto.randomUUID();
+  if (nextComparable.includes(currentComparable)) {
+    return dedupeLiveRepeatedPhrases(next);
   }
 
-  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-}
-
-function createRecordingOverlayState(
-  settings: AppSettings,
-  audioLevel: number
-): OverlayState {
-  return {
-    status: "recording",
-    message: "Идет запись",
-    audioLevel,
-    hotkeyLabel: hotkeyLabel(settings.hotkey)
-  };
-}
-
-function notifyOverlay(state: OverlayState): void {
-  void window.promptik.updateOverlay(state).catch(() => undefined);
-}
-
-function getErrorMessage(error: unknown, fallback: string): string {
-  if (error instanceof Error && error.message.trim().length > 0) {
-    return error.message;
+  if (currentComparable.includes(nextComparable)) {
+    return dedupeLiveRepeatedPhrases(current);
   }
 
-  if (typeof error === "string" && error.trim().length > 0) {
-    return error;
+  const tooShortToReplace = next.length < current.length * 0.72;
+  const doesNotContinuePrefix = !nextComparable.startsWith(
+    currentComparable.slice(0, Math.min(80, currentComparable.length))
+  );
+
+  if (tooShortToReplace && doesNotContinuePrefix) {
+    return dedupeLiveRepeatedPhrases(appendLiveTextWithOverlap(current, next));
   }
 
-  return fallback;
+  return dedupeLiveRepeatedPhrases(next);
+}
+
+function appendLiveTextWithOverlap(currentText: string, nextText: string): string {
+  const currentWords = currentText.trim().split(/\s+/);
+  const nextWords = nextText.trim().split(/\s+/);
+  const currentComparableWords = currentWords.map(normalizeLiveText);
+  const nextComparableWords = nextWords.map(normalizeLiveText);
+  const maxOverlap = Math.min(18, currentWords.length, nextWords.length);
+
+  for (let overlap = maxOverlap; overlap > 0; overlap -= 1) {
+    const currentTail = currentComparableWords.slice(-overlap).join(" ");
+    const nextHead = nextComparableWords.slice(0, overlap).join(" ");
+
+    if (currentTail && currentTail === nextHead) {
+      return `${currentText.trim()} ${nextWords.slice(overlap).join(" ")}`.trim();
+    }
+  }
+
+  return `${currentText.trim()} ${nextText.trim()}`.trim();
+}
+
+function normalizeLiveText(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[.,!?…:;'"«»()[\]{}_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function dedupeLiveRepeatedPhrases(text: string): string {
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  if (words.length < 4) {
+    return text.trim();
+  }
+
+  let changed = true;
+  while (changed) {
+    changed = false;
+    const normalizedWords = words.map(normalizeLiveText);
+    const maxLength = Math.min(14, Math.floor(words.length / 2));
+
+    phraseLoop:
+    for (let length = maxLength; length >= 2; length -= 1) {
+      for (let index = 0; index + length * 2 <= words.length; index += 1) {
+        const first = normalizedWords.slice(index, index + length).join(" ");
+        const second = normalizedWords
+          .slice(index + length, index + length * 2)
+          .join(" ");
+
+        if (first && first === second) {
+          words.splice(index + length, length);
+          changed = true;
+          break phraseLoop;
+        }
+      }
+    }
+  }
+
+  return words.join(" ").trim();
 }

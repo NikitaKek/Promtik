@@ -35,6 +35,8 @@ export interface AppSettings {
   aiFormat: boolean;
   vadSilenceMs: number;
   beamSize: number;
+  liveChunkMs: number;
+  liveWindowMs: number;
   termHints: string;
   hotkey: HotkeyAccelerator;
 }
@@ -58,6 +60,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   aiFormat: false,
   vadSilenceMs: 1100,
   beamSize: 12,
+  liveChunkMs: 1000,
+  liveWindowMs: 5000,
   termHints: "ChatGPT, Claude, Codex, Cursor, OpenAI, Python, TypeScript, React, Electron, Whisper, faster-whisper, CUDA",
   hotkey: "CommandOrControl+Alt+Space"
 };
@@ -111,6 +115,8 @@ function normalizeSettings(value: Partial<AppSettings>): AppSettings {
         : DEFAULT_SETTINGS.aiFormat,
     vadSilenceMs: normalizeVadSilence(value.vadSilenceMs),
     beamSize: normalizeBeamSize(value.beamSize),
+    liveChunkMs: normalizeLiveChunkMs(value.liveChunkMs),
+    liveWindowMs: normalizeLiveWindowMs(value.liveWindowMs),
     termHints:
       typeof value.termHints === "string"
         ? value.termHints.slice(0, 2000)
@@ -137,6 +143,26 @@ function normalizeBeamSize(value: unknown): number {
   }
 
   return Math.min(12, Math.max(1, Math.round(numericValue)));
+}
+
+function normalizeLiveChunkMs(value: unknown): number {
+  const numericValue =
+    typeof value === "number" ? value : DEFAULT_SETTINGS.liveChunkMs;
+  if (!Number.isFinite(numericValue)) {
+    return DEFAULT_SETTINGS.liveChunkMs;
+  }
+
+  return Math.min(5000, Math.max(1000, Math.round(numericValue / 500) * 500));
+}
+
+function normalizeLiveWindowMs(value: unknown): number {
+  const numericValue =
+    typeof value === "number" ? value : DEFAULT_SETTINGS.liveWindowMs;
+  if (!Number.isFinite(numericValue)) {
+    return DEFAULT_SETTINGS.liveWindowMs;
+  }
+
+  return Math.min(8000, Math.max(3000, Math.round(numericValue / 500) * 500));
 }
 
 export async function loadSettings(): Promise<AppSettings> {

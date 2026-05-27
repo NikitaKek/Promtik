@@ -52,7 +52,7 @@ const api = {
       | "vadSilenceMs"
       | "beamSize"
       | "termHints"
-    >
+    > & { promptMode?: "default" | "none" | "live" }
   ): Promise<TranscriptionResponse> =>
     ipcRenderer.invoke("transcribe:file", {
       filePath,
@@ -61,7 +61,8 @@ const api = {
       deviceMode: settings.deviceMode,
       vadSilenceMs: settings.vadSilenceMs,
       beamSize: settings.beamSize,
-      termHints: settings.termHints
+      termHints: settings.termHints,
+      promptMode: settings.promptMode ?? "default"
     }),
   copyText: (text: string): Promise<{ ok: boolean }> =>
     ipcRenderer.invoke("clipboard:copy", text),

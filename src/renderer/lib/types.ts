@@ -55,6 +55,8 @@ export interface AppSettings {
   aiFormat: boolean;
   vadSilenceMs: number;
   beamSize: number;
+  liveChunkMs: number;
+  liveWindowMs: number;
   termHints: string;
   hotkey: HotkeyAccelerator;
 }
@@ -140,7 +142,7 @@ export interface PromptikApi {
       | "vadSilenceMs"
       | "beamSize"
       | "termHints"
-    >
+    > & { promptMode?: "default" | "none" | "live" }
   ) => Promise<TranscriptionResponse>;
   copyText: (text: string) => Promise<{ ok: boolean; error?: string }>;
   getOverlayState: () => Promise<OverlayState>;

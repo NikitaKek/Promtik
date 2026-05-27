@@ -34,6 +34,7 @@ interface TranscribePayload {
   vadSilenceMs: number;
   beamSize: number;
   termHints: string;
+  promptMode?: "default" | "none" | "live";
 }
 
 type OverlayPayload = MiniOverlayState;
@@ -179,7 +180,8 @@ export function registerIpcHandlers(
           payload.deviceMode,
           payload.vadSilenceMs,
           payload.beamSize,
-          payload.termHints
+          payload.termHints,
+          payload.promptMode ?? "default"
         );
       } catch (error) {
         return {

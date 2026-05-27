@@ -197,6 +197,14 @@ def normalize_hotwords(value: Any) -> str:
     return " ".join(value.replace("\n", " ").split())[:2000]
 
 
+def normalize_prompt_mode(value: Any) -> str:
+    prompt_mode = str(value).strip()
+    if prompt_mode not in {"default", "none", "live"}:
+        return "default"
+
+    return prompt_mode
+
+
 def get_huggingface_cache_dir() -> Path:
     explicit_cache = (
         os.environ.get("HUGGINGFACE_HUB_CACHE")
@@ -270,6 +278,7 @@ def transcribe(command: Dict[str, Any]) -> Dict[str, Any]:
     vad_silence_ms = normalize_vad_silence_ms(command.get("vad_silence_ms", 700))
     beam_size = normalize_beam_size(command.get("beam_size", 1))
     hotwords = normalize_hotwords(command.get("hotwords", ""))
+    prompt_mode = normalize_prompt_mode(command.get("prompt_mode", "default"))
 
     if not file_path:
         raise ValueError("Не передан путь к аудио или видео файлу.")
@@ -293,6 +302,7 @@ def transcribe(command: Dict[str, Any]) -> Dict[str, Any]:
             vad_silence_ms=vad_silence_ms,
             beam_size=beam_size,
             hotwords=hotwords,
+            prompt_mode=prompt_mode,
         )
     except Exception as exc:
         if preferred_device == "auto" and device == "cuda" and is_cuda_runtime_error(exc):
@@ -312,6 +322,7 @@ def transcribe(command: Dict[str, Any]) -> Dict[str, Any]:
                 vad_silence_ms=vad_silence_ms,
                 beam_size=beam_size,
                 hotwords=hotwords,
+                prompt_mode=prompt_mode,
             )
         else:
             raise
@@ -338,6 +349,7 @@ def run_transcription(
     vad_silence_ms: int,
     beam_size: int,
     hotwords: str,
+    prompt_mode: str,
 ) -> Tuple[List[Dict[str, Any]], str]:
     logging.info(
         "Transcribing file=%s model=%s language=%s device=%s compute_type=%s vad_silence_ms=%s beam_size=%s",
@@ -350,7 +362,12 @@ def run_transcription(
         beam_size,
     )
 
-    initial_prompt = build_initial_prompt(language, hotwords)
+    if prompt_mode == "none":
+        initial_prompt = None
+    elif prompt_mode == "live":
+        initial_prompt = build_live_prompt(language, hotwords)
+    else:
+        initial_prompt = build_initial_prompt(language, hotwords)
 
     segments_iter, info = model.transcribe(
         str(source),
@@ -399,6 +416,24 @@ def build_initial_prompt(language: str, hotwords: str) -> str:
 
     if hotwords:
         return f"{base_prompt} Важные термины: {hotwords}"
+
+    return base_prompt
+
+
+def build_live_prompt(language: str, hotwords: str) -> str:
+    if language == "en":
+        base_prompt = (
+            "Transcribe only the words actually spoken in the audio. "
+            "Do not add subtitles, explanations, continuations, or filler text."
+        )
+    else:
+        base_prompt = (
+            "Распознавай только реально произнесенные слова из аудио. "
+            "Не добавляй субтитры, пояснения, продолжения или служебный текст."
+        )
+
+    if hotwords:
+        return f"{base_prompt} Термины: {hotwords}"
 
     return base_prompt
 

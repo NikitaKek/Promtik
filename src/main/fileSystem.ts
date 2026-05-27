@@ -53,6 +53,8 @@ export async function ensureProjectStructure(): Promise<void> {
           aiFormat: false,
           vadSilenceMs: 1100,
           beamSize: 12,
+          liveChunkMs: 1000,
+          liveWindowMs: 5000,
           termHints: "ChatGPT, Claude, Codex, Cursor, OpenAI, Python, TypeScript, React, Electron, Whisper, faster-whisper, CUDA",
           hotkey: "CommandOrControl+Alt+Space"
         },
